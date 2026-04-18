@@ -1,0 +1,12 @@
+{
+  "project_name": "InitStory",
+  "repo_url": "https://github.com/YOUR_USERNAME/initstory",
+  "commit_sha": "FILL_AFTER_FINAL_COMMIT",
+  "rollup_chain_id": "initstory-1",
+  "deployed_address": "FILL_AFTER_DEPLOY",
+  "vm": "move",
+  "native_feature": "auto-signing",
+  "core_logic_path": "initstory-contract/sources/stories.move",
+  "native_feature_frontend_path": "initstory-frontend/src/hooks/useInitStory.js",
+  "demo_video_url": "https://youtu.be/FILL_AFTER_RECORDING"
+}
