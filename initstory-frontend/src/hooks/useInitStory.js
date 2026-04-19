@@ -1,4 +1,5 @@
-// useInitStory.js — custom hook for all on-chain interactions
+// useInitStory.js — FIXED VERSION
+// الحل: حذف deployer address من args — يتطلب تعديل stories.move أيضاً
 import { useState, useEffect, useCallback } from 'react'
 import { AccAddress, RESTClient } from '@initia/initia.js'
 import { MsgExecute } from '@initia/initia.proto/initia/move/v1/tx'
@@ -6,30 +7,48 @@ import { useInterwovenKit } from '@initia/interwovenkit-react'
 
 const CHAIN_ID     = import.meta.env.VITE_APPCHAIN_ID
 const REST_URL     = import.meta.env.VITE_INITIA_REST_URL
-const MODULE_ADDR  = import.meta.env.VITE_MODULE_ADDRESS   // bech32
+const MODULE_ADDR  = 'init1ekdf97utjwzssks7ru5459lytdrw79lxufj5zx'
 const NATIVE_DENOM = import.meta.env.VITE_NATIVE_DENOM
 const BACKEND_URL  = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'
 
-const rest = new RESTClient(REST_URL, { chainId: CHAIN_ID })
+const rest  = new RESTClient(REST_URL, { chainId: CHAIN_ID })
 const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 
 function moduleHex() {
   return AccAddress.toHex(MODULE_ADDR)
 }
 
+// BCS string encoding: length (ULEB128) + bytes
+function enc(s) {
+  const bytes = new TextEncoder().encode(s)
+  // ULEB128 encoding for length (works for strings < 128 bytes)
+  const lenByte = bytes.length
+  const result = new Uint8Array(1 + bytes.length)
+  result[0] = lenByte
+  result.set(bytes, 1)
+  return result
+}
+
+// BCS u64 encoding: little-endian 8 bytes
+function encU64(n) {
+  const buf  = new ArrayBuffer(8)
+  const view = new DataView(buf)
+  view.setBigUint64(0, BigInt(n), true)
+  return new Uint8Array(buf)
+}
+
 export function useInitStory() {
   const { initiaAddress, openConnect, requestTxSync, autoSign } = useInterwovenKit()
 
-  const [registry,   setRegistry]   = useState({ story_count: 0, character_count: 0 })
-  const [character,  setCharacter]  = useState(null)
-  const [loading,    setLoading]    = useState(false)
-  const [txPending,  setTxPending]  = useState(false)
-  const [error,      setError]      = useState('')
+  const [registry,  setRegistry]  = useState({ story_count: 0, character_count: 0 })
+  const [character, setCharacter] = useState(null)
+  const [loading,   setLoading]   = useState(false)
+  const [txPending, setTxPending] = useState(false)
+  const [error,     setError]     = useState('')
 
   const isAutoSignEnabled = Boolean(autoSign?.isEnabledByChain?.[CHAIN_ID])
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
-
+  // ── Core TX sender ────────────────────────────────────────────────────────
   const sendTx = useCallback(async (functionName, args = []) => {
     if (!initiaAddress) { openConnect(); return null }
     setTxPending(true)
@@ -37,19 +56,19 @@ export function useInitStory() {
     try {
       const result = await requestTxSync({
         chainId:  CHAIN_ID,
-        autoSign: isAutoSignEnabled,
-        feeDenom: isAutoSignEnabled ? NATIVE_DENOM : undefined,
         messages: [{
           typeUrl: '/initia.move.v1.MsgExecute',
           value: MsgExecute.fromPartial({
-            sender:       initiaAddress,
+            sender:        initiaAddress,
             moduleAddress: MODULE_ADDR,
-            moduleName:   'stories',
+            moduleName:    'stories',
             functionName,
-            typeArgs:     [],
+            typeArgs:      [],
             args,
           }),
         }],
+        gas:  '400000',
+        fees: [{ denom: 'uinit', amount: '200000' }],
       })
       await sleep(2000)
       return result
@@ -59,10 +78,9 @@ export function useInitStory() {
     } finally {
       setTxPending(false)
     }
-  }, [initiaAddress, isAutoSignEnabled, openConnect, requestTxSync])
+  }, [initiaAddress, requestTxSync, openConnect])
 
   // ── On-chain reads ────────────────────────────────────────────────────────
-
   const fetchRegistry = useCallback(async (addr) => {
     if (!addr) return
     try {
@@ -100,12 +118,9 @@ export function useInitStory() {
     await Promise.all([fetchRegistry(initiaAddress), fetchCharacter(initiaAddress)])
   }, [initiaAddress, fetchRegistry, fetchCharacter])
 
-  useEffect(() => {
-    refreshAll()
-  }, [initiaAddress, refreshAll])
+  useEffect(() => { refreshAll() }, [initiaAddress, refreshAll])
 
-  // ── AI Generation (via backend) ───────────────────────────────────────────
-
+  // ── AI Generation ─────────────────────────────────────────────────────────
   const generateStory = useCallback(async ({ prompt, genre }) => {
     const charName  = character?.name  ?? 'the hero'
     const charLevel = character?.level ?? 1
@@ -115,58 +130,37 @@ export function useInitStory() {
       body:    JSON.stringify({ prompt, genre, characterName: charName, characterLevel: charLevel }),
     })
     if (!res.ok) throw new Error((await res.json()).error || 'Generation failed')
-    return res.json()  // { content, title, imageUri }
+    return res.json()
   }, [character])
 
-  // ── Public actions ────────────────────────────────────────────────────────
+  // ── Public Actions ────────────────────────────────────────────────────────
 
+  // ✅ FIXED: لا deployer address — يتطلب تعديل stories.move أيضاً
   const createCharacter = useCallback(async ({ name, genre }) => {
-    // Encode string args as BCS-compatible hex
-    const enc = (s) => {
-      const bytes = new TextEncoder().encode(s)
-      const len = new Uint8Array([bytes.length])
-      const buf = new Uint8Array(len.length + bytes.length)
-      buf.set(len, 0); buf.set(bytes, len.length)
-      return Array.from(buf).map(b => b.toString(16).padStart(2,'0')).join('')
-    }
     const result = await sendTx('create_character', [
       enc(name),
       enc(genre),
-      MODULE_ADDR,   // deployer address — same as module owner
+      // ✅ لا deployer address هنا — يجب تعديل stories.move أيضاً
     ])
     if (result) await refreshAll()
     return result
   }, [sendTx, refreshAll])
 
   const mintStory = useCallback(async ({ prompt, content, imageUri, genre, blockHeight }) => {
-    const enc = (s) => {
-      const bytes = new TextEncoder().encode(s)
-      const len = new Uint8Array([bytes.length])
-      const buf = new Uint8Array(len.length + bytes.length)
-      buf.set(len, 0); buf.set(bytes, len.length)
-      return Array.from(buf).map(b => b.toString(16).padStart(2,'0')).join('')
-    }
-    const encU64 = (n) => {
-      const buf = new ArrayBuffer(8)
-      const view = new DataView(buf)
-      view.setBigUint64(0, BigInt(n), true)
-      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('')
-    }
     const result = await sendTx('mint_story', [
       enc(prompt),
       enc(content),
       enc(imageUri),
       enc(genre),
-      encU64(0),           // character_id — always 0 for single character per wallet
-      encU64(blockHeight || Date.now()),
-      MODULE_ADDR,
+      encU64(0),
+      encU64(blockHeight || Math.floor(Date.now() / 1000)),
+      // ✅ لا deployer address هنا — يجب تعديل stories.move أيضاً
     ])
     if (result) await refreshAll()
     return result
   }, [sendTx, refreshAll])
 
   // ── Auto-sign toggle ──────────────────────────────────────────────────────
-
   const toggleAutoSign = useCallback(async () => {
     if (!initiaAddress) { openConnect(); return }
     try {
@@ -181,21 +175,9 @@ export function useInitStory() {
   }, [initiaAddress, isAutoSignEnabled, autoSign, openConnect])
 
   return {
-    // state
     address: initiaAddress,
-    registry,
-    character,
-    loading,
-    txPending,
-    error,
-    isAutoSignEnabled,
-    // actions
-    createCharacter,
-    mintStory,
-    generateStory,
-    toggleAutoSign,
-    refreshAll,
-    setError,
-    openConnect,
+    registry, character, loading, txPending, error, isAutoSignEnabled,
+    createCharacter, mintStory, generateStory, toggleAutoSign,
+    refreshAll, setError, openConnect,
   }
 }

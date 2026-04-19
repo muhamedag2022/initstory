@@ -26,19 +26,19 @@ const wagmiConfig = createConfig({
 })
 
 const customChain = {
-  chain_id:     import.meta.env.VITE_APPCHAIN_ID,
-  chain_name:   'initstory',
-  pretty_name:  'InitStory',
-  network_type: 'testnet',
+  chain_id:      'initstory-1',
+  chain_name:    'initstory',
+  pretty_name:   'InitStory',
+  network_type:  'testnet',
   bech32_prefix: 'init',
   apis: {
-    rpc:     [{ address: import.meta.env.VITE_INITIA_RPC_URL }],
-    rest:    [{ address: import.meta.env.VITE_INITIA_REST_URL }],
-    indexer: [{ address: import.meta.env.VITE_INITIA_INDEXER_URL }],
+    rpc:     [{ address: 'http://localhost:26657' }],
+    rest:    [{ address: 'http://localhost:1317' }],
+    indexer: [{ address: 'http://localhost:8080' }],
   },
   fees: {
     fee_tokens: [{
-      denom:               import.meta.env.VITE_NATIVE_DENOM,
+      denom:               'uinit',
       fixed_min_gas_price: 0,
       low_gas_price:       0,
       average_gas_price:   0,
@@ -46,17 +46,17 @@ const customChain = {
     }],
   },
   staking: {
-    staking_tokens: [{ denom: import.meta.env.VITE_NATIVE_DENOM }],
+    staking_tokens: [{ denom: 'uinit' }],
   },
   metadata: {
-    is_l1:    false,
+    is_l1:   false,
     minitia: { type: 'minimove' },
   },
   native_assets: [{
-    denom:    import.meta.env.VITE_NATIVE_DENOM,
+    denom:    'uinit',
     name:     'Native Token',
-    symbol:   import.meta.env.VITE_NATIVE_SYMBOL,
-    decimals: Number(import.meta.env.VITE_NATIVE_DECIMALS ?? 6),
+    symbol:   'INIT',
+    decimals: 6,
   }],
 }
 
@@ -64,10 +64,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        {/* enableAutoSign = true — the key Initia-native feature for InitStory */}
         <InterwovenKitProvider
           {...TESTNET}
-          defaultChainId={customChain.chain_id}
+          defaultChainId="initstory-1"
           enableAutoSign={true}
           customChain={customChain}
           customChains={[customChain]}
