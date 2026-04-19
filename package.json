@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@initia/initia.js": "^0.2.21",
-    "@initia/interwovenkit-react": "^0.3.0",
+    "@initia/interwovenkit-react": "latest",
     "@tanstack/react-query": "^5.40.0",
     "buffer": "^6.0.3",
     "react": "^18.3.1",

@@ -1,6 +1,6 @@
-/// InitStory — AI-powered storytelling appchain on Initia
+// InitStory - AI-powered storytelling appchain on Initia
 ///
-/// Users write a short prompt → AI generates a story scene → minted as an on-chain NFT.
+/// Users write a short prompt  AI generates a story scene  minted as an on-chain NFT.
 /// Characters evolve with each new story, tracked entirely on-chain.
 /// Auto-signing enables seamless minting without repeated wallet popups.
 module initstory::stories {
@@ -9,19 +9,19 @@ module initstory::stories {
     use std::string::{Self, String};
     use std::vector;
 
-    // ─── Error Codes ───────────────────────────────────────────────────────────
+    //  Error Codes 
     const E_STORY_NOT_FOUND:       u64 = 1;
     const E_NOT_OWNER:             u64 = 2;
     const E_EMPTY_PROMPT:          u64 = 3;
     const E_CHARACTER_NOT_FOUND:   u64 = 4;
     const E_INVALID_EVOLUTION_LVL: u64 = 5;
 
-    // ─── Constants ─────────────────────────────────────────────────────────────
+    //  Constants 
     const MAX_PROMPT_LENGTH:   u64 = 280;
     const MAX_CONTENT_LENGTH:  u64 = 2000;
     const EVOLUTION_THRESHOLD: u64 = 3; // stories needed per level-up
 
-    // ─── Structs ───────────────────────────────────────────────────────────────
+    //  Structs 
 
     /// A single minted story (NFT-like object stored under owner address)
     struct Story has key, store {
@@ -47,7 +47,7 @@ module initstory::stories {
         total_xp:    u64,
     }
 
-    /// Global registry — one per user address
+    /// Global registry  one per user address
     struct Registry has key {
         story_count:     u64,
         character_count: u64,
@@ -62,7 +62,7 @@ module initstory::stories {
         total_mints:      u64,
     }
 
-    // ─── View Types (copy/drop so they can be returned) ────────────────────────
+    //  View Types (copy/drop so they can be returned) 
     struct StoryView has copy, drop, store {
         id:           u64,
         owner:        address,
@@ -90,7 +90,7 @@ module initstory::stories {
         character_count: u64,
     }
 
-    // ─── Initializer ───────────────────────────────────────────────────────────
+    //  Initializer 
 
     fun init_module(deployer: &signer) {
         move_to(deployer, GlobalState {
@@ -100,7 +100,7 @@ module initstory::stories {
         });
     }
 
-    // ─── Registry helpers ──────────────────────────────────────────────────────
+    //  Registry helpers 
 
     fun ensure_registry(account: &signer) {
         let addr = signer::address_of(account);
@@ -114,7 +114,7 @@ module initstory::stories {
         }
     }
 
-    // ─── Public Entry Functions ────────────────────────────────────────────────
+    //  Public Entry Functions 
 
     /// Create a new character for the user (prerequisite for minting stories)
     public entry fun create_character(
@@ -146,7 +146,7 @@ module initstory::stories {
         global.total_characters = global.total_characters + 1;
     }
 
-    /// Mint a story NFT — called after AI generation on the backend
+    /// Mint a story NFT  called after AI generation on the backend
     /// `content` and `image_uri` are supplied by the backend/AI layer
     public entry fun mint_story(
         account:      &signer,
@@ -157,7 +157,7 @@ module initstory::stories {
         character_id: u64,
         block_height: u64,
         deployer:     address,
-    ) acquires Registry, Story, Character, GlobalState {
+    ) acquires Registry, Character, GlobalState {
         // Validate inputs
         assert!(string::length(&prompt) > 0,   error::invalid_argument(E_EMPTY_PROMPT));
         assert!(string::length(&prompt) <= MAX_PROMPT_LENGTH, error::invalid_argument(E_EMPTY_PROMPT));
@@ -200,7 +200,7 @@ module initstory::stories {
         global.total_mints   = global.total_mints + 1;
     }
 
-    // ─── View Functions ────────────────────────────────────────────────────────
+    //  View Functions 
 
     #[view]
     public fun get_registry(addr: address): RegistryView acquires Registry {
@@ -247,13 +247,13 @@ module initstory::stories {
         (g.total_stories, g.total_characters, g.total_mints)
     }
 
-    // ─── Unit Tests ─────────────────────────────────────────────────────────────
+    //  Unit Tests 
 
     #[test_only]
     use std::string;
 
     #[test(account = @initstory)]
-    fun test_create_character_and_mint_story(account: &signer) acquires Registry, Story, Character, GlobalState {
+    fun test_create_character_and_mint_story(account: &signer) acquires Registry, Character, GlobalState {
         // bootstrap global state for test
         init_module(account);
         let addr = signer::address_of(account);
@@ -289,13 +289,13 @@ module initstory::stories {
     }
 
     #[test(account = @initstory)]
-    fun test_character_levels_up_after_threshold(account: &signer) acquires Registry, Story, Character, GlobalState {
+    fun test_character_levels_up_after_threshold(account: &signer) acquires Registry, Character, GlobalState {
         init_module(account);
         let addr = signer::address_of(account);
 
         create_character(account, string::utf8(b"Rael"), string::utf8(b"sci-fi"), addr);
 
-        // Mint 3 stories → should trigger level-up to 2
+        // Mint 3 stories  should trigger level-up to 2
         let i = 0u64;
         while (i < 3) {
             mint_story(
@@ -319,13 +319,13 @@ module initstory::stories {
 
     #[test(account = @initstory)]
     #[expected_failure(abort_code = 0x10003)]
-    fun test_mint_story_rejects_empty_prompt(account: &signer) acquires Registry, Story, Character, GlobalState {
+    fun test_mint_story_rejects_empty_prompt(account: &signer) acquires Registry, Character, GlobalState {
         init_module(account);
         let addr = signer::address_of(account);
         create_character(account, string::utf8(b"X"), string::utf8(b"mystery"), addr);
         mint_story(
             account,
-            string::utf8(b""),   // ← empty prompt should abort
+            string::utf8(b""),   //  empty prompt should abort
             string::utf8(b"content"),
             string::utf8(b"ipfs://img"),
             string::utf8(b"mystery"),
