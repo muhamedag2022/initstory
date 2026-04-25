@@ -1,12 +1,13 @@
 {
   "project_name": "InitStory",
-  "repo_url": "https://github.com/YOUR_USERNAME/initstory",
-  "commit_sha": "FILL_AFTER_FINAL_COMMIT",
+  "tagline": "AI-Powered Storytelling Appchain with Zero-Friction UX",
+  "repo_url": "https://github.com/muhamedag2022/initstory",
+  "commit_sha": "77c6529adb7f0030b7a7d7802b1de4fa42d9def2",
   "rollup_chain_id": "initstory-1",
-  "deployed_address": "FILL_AFTER_DEPLOY",
+  "deployed_address": "init10qn8f96cjj64dqy5znu0s2a4ymh2t46shdwh4c",
   "vm": "move",
   "native_feature": "auto-signing",
   "core_logic_path": "initstory-contract/sources/stories.move",
   "native_feature_frontend_path": "initstory-frontend/src/hooks/useInitStory.js",
-  "demo_video_url": "https://youtu.be/FILL_AFTER_RECORDING"
+  "demo_video_url": "https://youtu.be/a8udmZyjdDg"
 }

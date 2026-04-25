@@ -7,7 +7,7 @@ import { useInterwovenKit } from '@initia/interwovenkit-react'
 
 const CHAIN_ID     = import.meta.env.VITE_APPCHAIN_ID
 const REST_URL     = import.meta.env.VITE_INITIA_REST_URL
-const MODULE_ADDR  = 'init1ekdf97utjwzssks7ru5459lytdrw79lxufj5zx'
+const MODULE_ADDR  = 'init10qn8f96cjj64dqy5znu0s2a4ymh2t46shdwh4c'
 const NATIVE_DENOM = import.meta.env.VITE_NATIVE_DENOM
 const BACKEND_URL  = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'
 
@@ -21,11 +21,17 @@ function moduleHex() {
 // BCS string encoding: length (ULEB128) + bytes
 function enc(s) {
   const bytes = new TextEncoder().encode(s)
-  // ULEB128 encoding for length (works for strings < 128 bytes)
-  const lenByte = bytes.length
-  const result = new Uint8Array(1 + bytes.length)
-  result[0] = lenByte
-  result.set(bytes, 1)
+  const uleb = []
+  let len = bytes.length
+  do {
+    let b = len & 0x7f
+    len >>= 7
+    if (len > 0) b |= 0x80
+    uleb.push(b)
+  } while (len > 0)
+  const result = new Uint8Array(uleb.length + bytes.length)
+  result.set(uleb, 0)
+  result.set(bytes, uleb.length)
   return result
 }
 

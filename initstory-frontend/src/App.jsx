@@ -2,7 +2,11 @@ import React, { useState } from 'react'
 import { useInterwovenKit } from '@initia/interwovenkit-react'
 import { useInitStory } from './hooks/useInitStory.js'
 
-// ─── Genre config ─────────────────────────────────────────────────────────────
+// استيراد المكونات الجديدة التي أنشأناها
+import ConnectPrompt from './components/ConnectPrompt.jsx'
+import StoryGallery  from './components/StoryGallery.jsx'
+
+// ─── الإعدادات ─────────────────────────────────────────────────────────────
 const GENRES = [
   { id: 'fantasy',   label: 'Fantasy',   icon: '✦' },
   { id: 'sci-fi',    label: 'Sci-Fi',    icon: '◈' },
@@ -13,20 +17,7 @@ const GENRES = [
 const LEVEL_NAMES = ['', 'Novice', 'Apprentice', 'Wanderer', 'Seeker',
                          'Adept', 'Champion', 'Veteran', 'Master', 'Legend', 'Mythic']
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function ConnectPrompt({ openConnect }) {
-  return (
-    <div className="connect-prompt">
-      <div className="connect-inner">
-        <div className="logo-glyph">✦</div>
-        <h1>InitStory</h1>
-        <p>Write a prompt. Claim your story as an on-chain NFT. Watch your character evolve.</p>
-        <button className="btn-primary" onClick={openConnect}>Connect Wallet</button>
-      </div>
-    </div>
-  )
-}
+// ─── المكونات الفرعية الداخلية ──────────────────────────────────────────────
 
 function CreateCharacterPanel({ onCreate, loading }) {
   const [name,  setName]  = useState('')
@@ -102,8 +93,8 @@ function CharacterCard({ character }) {
 function StoryComposer({ character, onMint, txPending, isAutoSignEnabled, toggleAutoSign }) {
   const [prompt,    setPrompt]    = useState('')
   const [genre,     setGenre]     = useState(character?.genre || 'fantasy')
-  const [phase,     setPhase]     = useState('idle')   // idle | generating | confirming | done
-  const [preview,   setPreview]   = useState(null)     // { title, content, imageUri }
+  const [phase,     setPhase]     = useState('idle')
+  const [preview,   setPreview]   = useState(null)
   const [error,     setError]     = useState('')
 
   const { generateStory } = useInitStory()
@@ -114,7 +105,7 @@ function StoryComposer({ character, onMint, txPending, isAutoSignEnabled, toggle
     setError('')
     try {
       const result = await generateStory({ prompt: prompt.trim(), genre })
-      setPreview(result)
+      setPreview({ ...result, cacheBuster: Date.now() }) 
       setPhase('confirming')
     } catch (e) {
       setError(e.message || 'Generation failed')
@@ -128,7 +119,7 @@ function StoryComposer({ character, onMint, txPending, isAutoSignEnabled, toggle
     const result = await onMint({
       prompt:      prompt.trim(),
       content:     preview.content,
-      imageUri:    preview.imageUri,
+      imageUri:    preview.image_url,
       genre,
       blockHeight: Math.floor(Date.now() / 1000),
     })
@@ -153,7 +144,6 @@ function StoryComposer({ character, onMint, txPending, isAutoSignEnabled, toggle
         <button
           className={`autosign-toggle ${isAutoSignEnabled ? 'on' : ''}`}
           onClick={toggleAutoSign}
-          title="Auto-signing lets you mint without wallet popups"
         >
           <span className="toggle-dot" />
           Auto-sign {isAutoSignEnabled ? 'ON' : 'OFF'}
@@ -164,7 +154,7 @@ function StoryComposer({ character, onMint, txPending, isAutoSignEnabled, toggle
         <>
           <textarea
             className="prompt-input"
-            placeholder="Describe a scene… (e.g. A lone traveler finds a door of light in the desert)"
+            placeholder="Describe a scene…"
             value={prompt}
             onChange={e => setPrompt(e.target.value)}
             maxLength={280}
@@ -198,9 +188,12 @@ function StoryComposer({ character, onMint, txPending, isAutoSignEnabled, toggle
 
       {(phase === 'confirming' || phase === 'minting') && preview && (
         <div className="preview-panel">
-          {preview.imageUri && (
-            <img className="preview-img" src={preview.imageUri} alt={preview.title} />
-          )}
+          <img 
+            className="preview-img" 
+            src={preview.image_url || preview.imageUri} 
+            alt="Preview"
+            referrerPolicy="no-referrer" 
+          />
           <h3 className="preview-title">{preview.title}</h3>
           <p className="preview-content">{preview.content}</p>
           <div className="preview-actions">
@@ -234,6 +227,7 @@ export default function App() {
 
   const short = (a) => a ? `${a.slice(0,8)}…${a.slice(-4)}` : ''
 
+  // إذا لم يكن هناك محفظة متصلة، اعرض صفحة الـ Landing Page الجديدة
   if (!initiaAddress) return <ConnectPrompt openConnect={openConnect} />
 
   return (
@@ -253,16 +247,25 @@ export default function App() {
 
         {character && <CharacterCard character={character} />}
 
+        {/* عرض المعرض فقط إذا كان هناك شخصية وعنوان محفظة */}
+        {character && initiaAddress && (
+          <div style={{ marginTop: '40px' }}>
+             <StoryGallery address={initiaAddress} />
+          </div>
+        )}
+
         {!character ? (
           <CreateCharacterPanel onCreate={createCharacter} loading={txPending} />
         ) : (
-          <StoryComposer
-            character={character}
-            onMint={mintStory}
-            txPending={txPending}
-            isAutoSignEnabled={isAutoSignEnabled}
-            toggleAutoSign={toggleAutoSign}
-          />
+          <div style={{ marginTop: '24px' }}>
+            <StoryComposer
+              character={character}
+              onMint={mintStory}
+              txPending={txPending}
+              isAutoSignEnabled={isAutoSignEnabled}
+              toggleAutoSign={toggleAutoSign}
+            />
+          </div>
         )}
       </main>
     </div>
