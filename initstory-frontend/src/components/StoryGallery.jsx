@@ -2,12 +2,15 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { AccAddress, RESTClient } from '@initia/initia.js'
 
-const MODULE_ADDR = 'init10qn8f96cjj64dqy5znu0s2a4ymh2t46shdwh4c'
+const MODULE_ADDR = import.meta.env.VITE_MODULE_ADDRESS
 const REST_URL    = import.meta.env.VITE_INITIA_REST_URL || 'http://localhost:1317'
 const CHAIN_ID    = import.meta.env.VITE_APPCHAIN_ID     || 'initstory-1'
 const rest        = new RESTClient(REST_URL, { chainId: CHAIN_ID })
 
-function moduleHex() { return AccAddress.toHex(MODULE_ADDR) }
+function moduleHex() {
+  if (MODULE_ADDR?.startsWith('0x')) return MODULE_ADDR
+  return AccAddress.toHex(MODULE_ADDR)
+}
 
 const GENRE_COLORS = {
   fantasy:   { bg: 'rgba(201,137,58,0.18)', border: 'rgba(201,137,58,0.35)', text: '#c9893a' },
@@ -201,8 +204,11 @@ export default function StoryGallery({ address }) {
       const res = await rest.move.resource(address, tag)
       const raw = res.data?.stories || []
       const mapped = raw.map((s, i) => ({
-        id: i, prompt: s.prompt || '', genre: s.genre || 'fantasy',
-        image_uri: s.image_uri || '', content: s.content || s.prompt || '',
+        id: i,
+        prompt: s.prompt || '',
+        genre: s.genre || 'fantasy',
+        image_uri: s.image_uri || '',
+        content: s.content || s.prompt || '',
       }))
       setStories(mapped.slice(-5).reverse()) // last 5, newest first
     } catch { setStories([]) }

@@ -75,19 +75,20 @@ On-chain (initstory-1 — Move VM Appchain)
   └── initstory::stories module
         ├── Registry  (story count per wallet)
         ├── Character (name, level, XP, story_count)
-        └── StoryData (prompt, genre, image_uri in vector)
+        └── StoryData (prompt, content, genre, image_uri in vector)
 ```
 
 ---
 
 ## 📊 Smart Contract — Move VM
 
-**Module:** `0x782674975894b556809414f8f82bb526eea5d750::stories`
+**Module:** `0x2b4ab6325b6e7096e9df71f78f20d993071a7028::stories`
 
 Key innovations:
 - `Character` resource evolves automatically with every mint (+10 XP, level up every 3 stories)
-- `StoryData` stored in a `vector` inside `Registry` — unlimited stories per wallet
-- No `deployer` address parameter — uses `@initstory` directly
+- `StoryData` stores `prompt`, `content`, `genre`, and `image_uri` in a `vector` inside `Registry`
+- `create_character` is one-time per wallet and rejects duplicates to keep counters consistent
+- No `deployer` address parameter in entry functions — module uses `@initstory` directly
 - `GlobalState` tracks platform-wide statistics
 
 ```move
@@ -100,8 +101,8 @@ public entry fun mint_story(
     _character_id: u64,
     _block_height: u64,
 ) acquires Registry, Character, GlobalState {
-    // Stores story in vector — unlimited mints per wallet
-    vector::push_back(&mut registry.stories, StoryData { prompt, genre, image_uri });
+    // Stores full story payload in vector — unlimited mints per wallet
+    vector::push_back(&mut registry.stories, StoryData { prompt, content, genre, image_uri });
     // Auto-evolve character
     character.total_xp = character.total_xp + 10;
     character.level    = (character.total_xp / 30) + 1;
@@ -143,8 +144,8 @@ cd initstory-contract
 minitiad move deploy --build \
   --language-version=2.1 \
   --named-addresses initstory=YOUR_HEX \
-  --from gas-station --keyring-backend test \
-  --chain-id initstory-1 --fees 500000uinit --gas 500000 --yes
+  --from deployer4 --keyring-backend test \
+  --chain-id initstory-1 --fees 120000uinit --gas 600000 --yes
 ```
 
 ### 3. Start Backend

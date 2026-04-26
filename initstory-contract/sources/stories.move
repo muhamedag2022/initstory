@@ -4,12 +4,14 @@ module initstory::stories {
     use std::string::{Self, String};
     use std::vector;
 
-    const E_EMPTY_PROMPT:          u64 = 3;
-    const E_CHARACTER_NOT_FOUND:   u64 = 4;
-    const EVOLUTION_THRESHOLD:     u64 = 3;
+    const E_EMPTY_PROMPT:            u64 = 3;
+    const E_CHARACTER_NOT_FOUND:     u64 = 4;
+    const E_CHARACTER_ALREADY_EXISTS:u64 = 5;
+    const EVOLUTION_THRESHOLD:       u64 = 3;
 
     struct StoryData has store, drop {
         prompt:    String,
+        content:   String,
         genre:     String,
         image_uri: String,
     }
@@ -67,17 +69,16 @@ module initstory::stories {
     ) acquires Registry, GlobalState {
         ensure_registry(account);
         let addr = signer::address_of(account);
+        assert!(!exists<Character>(addr), error::already_exists(E_CHARACTER_ALREADY_EXISTS));
+
         let registry = borrow_global_mut<Registry>(addr);
         let char_id = registry.character_count;
+        move_to(account, Character {
+            id: char_id, owner: addr, name, genre,
+            level: 1, story_count: 0, total_xp: 0,
+        });
+
         registry.character_count = char_id + 1;
-
-        if (!exists<Character>(addr)) {
-            move_to(account, Character {
-                id: char_id, owner: addr, name, genre,
-                level: 1, story_count: 0, total_xp: 0,
-            });
-        };
-
         let global = borrow_global_mut<GlobalState>(@initstory);
         global.total_characters = global.total_characters + 1;
     }
@@ -99,7 +100,7 @@ module initstory::stories {
 
         registry.story_count = registry.story_count + 1;
         vector::push_back(&mut registry.stories, StoryData {
-            prompt, genre, image_uri,
+            prompt, content, genre, image_uri,
         });
 
         if (exists<Character>(addr)) {
@@ -144,5 +145,74 @@ module initstory::stories {
     public fun character_level(addr: address): u64 acquires Character {
         if (!exists<Character>(addr)) { return 0 };
         borrow_global<Character>(addr).level
+    }
+
+    #[test(account = @initstory)]
+    fun test_create_character_and_mint_story(account: &signer) acquires Registry, Character, GlobalState {
+        init_module(account);
+        let name  = string::utf8(b"Hero");
+        let genre = string::utf8(b"Fantasy");
+        create_character(account, name, genre);
+
+        let addr = signer::address_of(account);
+        let reg  = get_registry(addr);
+        assert!(reg.character_count == 1, 100);
+
+        let char = get_character(addr);
+        assert!(char.level == 1, 101);
+        assert!(char.story_count == 0, 102);
+
+        mint_story(
+            account,
+            string::utf8(b"A brave quest"),
+            string::utf8(b"Once upon a time..."),
+            string::utf8(b"https://img.example/1.png"),
+            string::utf8(b"Fantasy"),
+            0, 1,
+        );
+
+        let reg2 = get_registry(addr);
+        assert!(reg2.story_count == 1, 103);
+        let char2 = get_character(addr);
+        assert!(char2.story_count == 1, 104);
+        assert!(char2.total_xp == 10, 105);
+    }
+
+    #[test(account = @initstory)]
+    fun test_character_levels_up_after_threshold(account: &signer) acquires Registry, Character, GlobalState {
+        init_module(account);
+        create_character(account, string::utf8(b"Mage"), string::utf8(b"Sci-Fi"));
+
+        let i = 0;
+        while (i < 3) {
+            mint_story(
+                account,
+                string::utf8(b"prompt"),
+                string::utf8(b"content"),
+                string::utf8(b"uri"),
+                string::utf8(b"Sci-Fi"),
+                0, 1,
+            );
+            i = i + 1;
+        };
+
+        let addr = signer::address_of(account);
+        let char = get_character(addr);
+        assert!(char.total_xp == 30, 200);
+        assert!(char.level >= 2, 201);
+    }
+
+    #[test(account = @initstory)]
+    #[expected_failure(abort_code = 0x10003)]
+    fun test_mint_story_rejects_empty_prompt(account: &signer) acquires Registry, Character, GlobalState {
+        init_module(account);
+        mint_story(
+            account,
+            string::utf8(b""),
+            string::utf8(b"content"),
+            string::utf8(b"uri"),
+            string::utf8(b"Horror"),
+            0, 1,
+        );
     }
 }

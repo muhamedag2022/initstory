@@ -17,13 +17,29 @@ const openai = new OpenAI({
 
 app.post('/api/generate', async (req, res) => {
   try {
-    const { prompt, genre = 'fantasy', characterName = 'Hero', characterLevel = 1 } = req.body;
+    const {
+      prompt,
+      genre = 'fantasy',
+      characterName = 'Hero',
+      characterLevel = 1,
+    } = req.body || {};
+
+    if (typeof prompt !== 'string' || !prompt.trim()) {
+      return res.status(400).json({ error: 'prompt is required' });
+    }
+
+    const safePrompt = prompt.trim().slice(0, 300);
+    const safeGenre = String(genre).slice(0, 40);
+    const safeCharacterName = String(characterName).slice(0, 80);
+    const safeCharacterLevel = Number.isFinite(Number(characterLevel))
+      ? Math.max(1, Math.min(100, Number(characterLevel)))
+      : 1;
 
     const textResponse = await openai.chat.completions.create({
       model: 'qwen/qwen3.6-plus',
       messages: [{
         role: 'user',
-        content: `Write a short engaging story: ${prompt}. Character: ${characterName} (Level ${characterLevel}). Genre: ${genre}`
+        content: `Write a short engaging story: ${safePrompt}. Character: ${safeCharacterName} (Level ${safeCharacterLevel}). Genre: ${safeGenre}`
       }],
       max_tokens: 700,
       temperature: 0.85,
@@ -31,17 +47,15 @@ app.post('/api/generate', async (req, res) => {
 
     const content = textResponse.choices[0].message.content;
 
-    // استخدام Flux عبر Pollinations للصور
-    const imagePrompt = `High quality digital art, ${genre} scene: ${prompt}. Character ${characterName}. Masterpiece.`;
+    const imagePrompt = `High quality digital art, ${safeGenre} scene: ${safePrompt}. Character ${safeCharacterName}. Masterpiece.`;
     const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=768&height=768&nologo=true&nofeed=true&model=flux`;
 
     res.json({
-  content: content,
-      title: prompt.slice(0, 50),
-  title: prompt.slice(0, 40),
-  imageUri: imageUrl,
-  image_url: imageUrl
-});
+      content,
+      title: safePrompt.slice(0, 40),
+      imageUri: imageUrl,
+      image_url: imageUrl,
+    });
   } catch (error) {
     console.error('Generation error:', error);
     res.status(500).json({ error: error.message });

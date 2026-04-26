@@ -7,7 +7,7 @@ import { useInterwovenKit } from '@initia/interwovenkit-react'
 
 const CHAIN_ID     = import.meta.env.VITE_APPCHAIN_ID
 const REST_URL     = import.meta.env.VITE_INITIA_REST_URL
-const MODULE_ADDR  = 'init10qn8f96cjj64dqy5znu0s2a4ymh2t46shdwh4c'
+const MODULE_ADDR  = import.meta.env.VITE_MODULE_ADDRESS
 const NATIVE_DENOM = import.meta.env.VITE_NATIVE_DENOM
 const BACKEND_URL  = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'
 
@@ -15,6 +15,7 @@ const rest  = new RESTClient(REST_URL, { chainId: CHAIN_ID })
 const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 
 function moduleHex() {
+  if (MODULE_ADDR?.startsWith('0x')) return MODULE_ADDR
   return AccAddress.toHex(MODULE_ADDR)
 }
 
@@ -79,7 +80,17 @@ export function useInitStory() {
       await sleep(2000)
       return result
     } catch (e) {
-      setError(e?.message || 'Transaction failed')
+      const rawMessage = e?.message || 'Transaction failed'
+      const lower = String(rawMessage).toLowerCase()
+      if (
+        lower.includes('already exists') ||
+        lower.includes('already_exists') ||
+        lower.includes('e_character_already_exists')
+      ) {
+        setError('Character already exists for this wallet.')
+      } else {
+        setError(rawMessage)
+      }
       return null
     } finally {
       setTxPending(false)
