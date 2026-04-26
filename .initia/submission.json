@@ -2,7 +2,7 @@
   "project_name": "InitStory",
   "tagline": "AI-Powered Storytelling Appchain with Zero-Friction UX",
   "repo_url": "https://github.com/muhamedag2022/initstory",
-  "commit_sha": "77c6529adb7f0030b7a7d7802b1de4fa42d9def2",
+  "commit_sha": "bfacdd2048c6897825b974072187ad94a2e62aec",
   "rollup_chain_id": "initstory-1",
   "deployed_address": "init19d9tvvjmdecfd6wlw8mc7gxejvr35upgzxngzf",
   "vm": "move",
